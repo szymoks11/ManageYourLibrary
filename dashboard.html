@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">📚 Library Management</div>
+        <div class="nav-user">
+            <span id="user-info"></span>
+            <button id="logout-btn" class="btn btn-small">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" data-tab="books">Books</button>
+            <button class="tab" data-tab="loans" id="loans-tab" style="display: none;">Loans</button>
+            <button class="tab" data-tab="users" id="users-tab" style="display: none;">Users</button>
+        </div>
+
+        <!-- Books Tab -->
+        <div id="books-tab-content" class="tab-content active">
+            <div class="toolbar">
+                <input type="text" id="search-books" placeholder="Search books by title or author..." class="search-input">
+                <button id="add-book-btn" class="btn btn-primary" style="display: none;">+ Add Book</button>
+            </div>
+            
+            <div class="table-container">
+                <table id="books-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>ISBN</th>
+                            <th>Available</th>
+                            <th>Total</th>
+                            <th id="books-actions-col" style="display: none;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Loans Tab -->
+        <div id="loans-tab-content" class="tab-content">
+            <div class="toolbar">
+                <button id="add-loan-btn" class="btn btn-primary">+ New Loan</button>
+            </div>
+            
+            <div class="table-container">
+                <table id="loans-table">
+                    <thead>
+                        <tr>
+                            <th>Book</th>
+                            <th>Borrower</th>
+                            <th>Borrowed Date</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="users-tab-content" class="tab-content">
+            <div class="toolbar">
+                <button id="add-user-btn" class="btn btn-primary">+ Add User</button>
+            </div>
+            
+            <div class="table-container">
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit Book -->
+    <div id="book-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="book-modal-title">Add Book</h2>
+            <form id="book-form">
+                <input type="hidden" id="book-id">
+                <div class="form-group">
+                    <label for="book-title">Title*</label>
+                    <input type="text" id="book-title" required>
+                </div>
+                <div class="form-group">
+                    <label for="book-author">Author*</label>
+                    <input type="text" id="book-author" required>
+                </div>
+                <div class="form-group">
+                    <label for="book-isbn">ISBN</label>
+                    <input type="text" id="book-isbn">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="book-quantity">Total Quantity*</label>
+                        <input type="number" id="book-quantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="book-available">Available</label>
+                        <input type="number" id="book-available" min="0">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('book-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Add Loan -->
+    <div id="loan-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>New Loan</h2>
+            <form id="loan-form">
+                <div class="form-group">
+                    <label for="loan-book">Book*</label>
+                    <select id="loan-book" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="loan-user">Borrower*</label>
+                    <select id="loan-user" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="loan-due-date">Due Date*</label>
+                    <input type="date" id="loan-due-date" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('loan-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Loan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Add User -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add User</h2>
+            <form id="user-form">
+                <div class="form-group">
+                    <label for="user-username">Username*</label>
+                    <input type="text" id="user-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-password">Password*</label>
+                    <input type="password" id="user-password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="user-role">Role*</label>
+                    <select id="user-role" required>
+                        <option value="guest">Guest</option>
+                        <option value="worker">Worker</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('user-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
