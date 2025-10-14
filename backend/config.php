@@ -1,13 +1,12 @@
 <?php
 // filepath: backend/config.php
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
-}
+// Suppress PHP errors from being displayed as HTML
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Don't set headers here - let individual API files handle them
+// This prevents header conflicts
 
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
@@ -16,11 +15,18 @@ define('DB_NAME', 'library_db');
 define('JWT_SECRET', 'your-secret-key-change-in-production');
 
 function getDB() {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-    if ($conn->connect_error) {
-        die(json_encode(['error' => 'Database connection failed']));
+    try {
+        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+        if ($conn->connect_error) {
+            // Don't use die() - it outputs HTML. Throw exception instead
+            throw new Exception('Database connection failed: ' . $conn->connect_error);
+        }
+        return $conn;
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Database connection failed']);
+        exit;
     }
-    return $conn;
 }
 
 function generateJWT($user) {
@@ -62,13 +68,15 @@ function authenticate() {
     
     if (!$token) {
         http_response_code(401);
-        die(json_encode(['error' => 'No token provided']));
+        echo json_encode(['error' => 'No token provided']);
+        exit;
     }
     
     $user = verifyJWT($token);
     if (!$user) {
         http_response_code(401);
-        die(json_encode(['error' => 'Invalid token']));
+        echo json_encode(['error' => 'Invalid token']);
+        exit;
     }
     
     return $user;
@@ -77,7 +85,8 @@ function authenticate() {
 function checkRole($user, $allowedRoles) {
     if (!in_array($user['role'], $allowedRoles)) {
         http_response_code(403);
-        die(json_encode(['error' => 'Insufficient permissions']));
+        echo json_encode(['error' => 'Insufficient permissions']);
+        exit;
     }
 }
 ?>
