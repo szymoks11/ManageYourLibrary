@@ -172,6 +172,32 @@ async function handleBookSubmit(e) {
         alert('Failed to save book: ' + error.message);
     }
 }
+async function startQRScanner() {
+    document.getElementById('qr-scanner').style.display = 'block';
+    const html5QrCode = new Html5Qrcode("qr-reader");
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+            console.log("Scanned:", decodedText);
+            await loadUserByCode(decodedText);
+            html5QrCode.stop();
+            document.getElementById('qr-scanner').style.display = 'none';
+        }
+    );
+}
+
+async function loadUserByCode(memberCode) {
+    const res = await fetch(`api/get_user_by_code.php?code=${memberCode}`);
+    const user = await res.json();
+    if (user && user.id) {
+        document.querySelector('#loan-user').value = user.id;
+        alert(`Znaleziono użytkownika: ${user.first_name} ${user.last_name}`);
+    } else {
+        alert("Nie znaleziono użytkownika!");
+    }
+}
 
 async function deleteBook(id) {
     if (!confirm('Are you sure you want to delete this book?')) return;

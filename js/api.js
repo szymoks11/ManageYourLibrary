@@ -56,15 +56,16 @@ class API {
     }
 
     static async updateBook(id, book) {
-        return this.request(`/books.php?id=${id}`, {
+        return this.request('/books.php', {
             method: 'PUT',
-            body: JSON.stringify(book)
+            body: JSON.stringify({ ...book, id }) // Send ID in body
         });
     }
 
     static async deleteBook(id) {
-        return this.request(`/books.php?id=${id}`, {
-            method: 'DELETE'
+        return this.request('/books.php', {
+            method: 'DELETE',
+            body: JSON.stringify({ id }) // Send ID in body
         });
     }
 
@@ -80,8 +81,9 @@ class API {
     }
 
     static async returnLoan(id) {
-        return this.request(`/loans.php?id=${id}`, {
-            method: 'PUT'
+        return this.request('/loans.php', {
+            method: 'PUT',
+            body: JSON.stringify({ id }) // Send ID in body instead of URL
         });
     }
 
@@ -97,8 +99,9 @@ class API {
     }
 
     static async deleteUser(id) {
-        return this.request(`/users.php?id=${id}`, {
-            method: 'DELETE'
+        return this.request('/users.php', {
+            method: 'DELETE',
+            body: JSON.stringify({ id }) // Send ID in body
         });
     }
 }

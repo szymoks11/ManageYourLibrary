@@ -1,5 +1,4 @@
 <?php
-// filepath: backend/api/auth.php
 
 // Set headers BEFORE including config.php
 header('Content-Type: application/json');

@@ -1,5 +1,4 @@
 <?php
-// filepath: backend/config.php
 
 // Suppress PHP errors from being displayed as HTML
 error_reporting(0);

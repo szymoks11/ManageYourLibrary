@@ -45,11 +45,17 @@
                 </table>
             </div>
         </div>
-
+        <div id="qr-scanner" style="display:none;">
+            <h3>Scan Member Card</h3>
+            <div id="qr-reader" style="width:300px"></div>
+        </div>
+        
         <!-- Loans Tab -->
         <div id="loans-tab-content" class="tab-content">
             <div class="toolbar">
                 <button id="add-loan-btn" class="btn btn-primary">+ New Loan</button>
+                <button onclick="startQRScanner()" class="btn btn-secondary">Scan Card</button>
+
             </div>
             
             <div class="table-container">
@@ -186,5 +192,7 @@
 
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
 </body>
 </html>

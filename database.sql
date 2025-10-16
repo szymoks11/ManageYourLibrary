@@ -29,6 +29,11 @@ CREATE TABLE loans (
     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+ALTER TABLE users
+ADD COLUMN first_name VARCHAR(100),
+ADD COLUMN last_name VARCHAR(100),
+ADD COLUMN member_code VARCHAR(20) UNIQUE,
+ADD COLUMN card_issued_at DATETIME DEFAULT CURRENT_TIMESTAMP;
 
 -- Insert default admin (password: admin123)
 INSERT INTO users (username, password, role) VALUES 
