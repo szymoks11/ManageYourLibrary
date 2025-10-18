@@ -8,46 +8,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-error_reporting(0);
+// Suppress error display but log them
+error_reporting(E_ALL);
 ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
 require_once '../config.php';
 
 try {
     $user = authenticate();
-    checkRole($user, ['admin']); // tylko admin może zarządzać użytkownikami
+    checkRole($user, ['admin']); // Only admins can manage users
 
     $method = $_SERVER['REQUEST_METHOD'];
     $db = getDB();
 
-    // --- Funkcja do generowania unikalnego kodu członka ---
+    // Function to generate a unique member code
     function generateMemberCode($db) {
         $result = $db->query("SELECT COUNT(*) AS total FROM users");
         $row = $result->fetch_assoc();
         $next = $row['total'] + 1;
-        return sprintf("LIB%05d", $next); // np. LIB00012
+        return sprintf("LIB%05d", $next); // e.g., LIB00012
     }
 
+    // Handle GET requests (Fetch all users)
     if ($method === 'GET') {
-        $result = $db->query("SELECT id, first_name, last_name, member_code, role, created_at FROM users ORDER BY created_at DESC");
-        $users = $result->fetch_all(MYSQLI_ASSOC);
-        echo json_encode($users);
-
-    } elseif ($method === 'POST') {
-        $data = json_decode(file_get_contents('php://input'), true);
-
-        if (empty($data['first_name']) || empty($data['last_name']) || empty($data['password']) || empty($data['role'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'First name, last name, password and role are required']);
+        $result = $db->query("SELECT id, first_name, last_name, username, member_code, role, created_at FROM users ORDER BY created_at DESC");
+        if (!$result) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to fetch users']);
             exit;
         }
 
-        // Wygeneruj unikalny member_code
+        $users = $result->fetch_all(MYSQLI_ASSOC);
+        echo json_encode($users);
+        exit;
+    }
+
+    // Handle POST requests (Create a new user)
+    if ($method === 'POST') {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (empty($data['first_name']) || empty($data['last_name']) || empty($data['username']) || empty($data['password']) || empty($data['role'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'First name, last name, username, password, and role are required']);
+            exit;
+        }
+
+        // Check if the username already exists
+        $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
+        $stmt->bind_param("s", $data['username']);
+        $stmt->execute();
+        $stmt->store_result();
+        if ($stmt->num_rows > 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Username already exists']);
+            exit;
+        }
+
+        // Generate a unique member code
         $member_code = generateMemberCode($db);
 
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-        $stmt = $db->prepare("INSERT INTO users (first_name, last_name, password, role, member_code) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssss", $data['first_name'], $data['last_name'], $hashedPassword, $data['role'], $member_code);
+        $stmt = $db->prepare("INSERT INTO users (first_name, last_name, username, password, role, member_code, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->bind_param("ssssss", $data['first_name'], $data['last_name'], $data['username'], $hashedPassword, $data['role'], $member_code);
 
         if ($stmt->execute()) {
             echo json_encode([
@@ -60,8 +83,11 @@ try {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to create user']);
         }
+        exit;
+    }
 
-    } elseif ($method === 'PUT') {
+    // Handle PUT requests (Update a user)
+    if ($method === 'PUT') {
         $data = json_decode(file_get_contents('php://input'), true);
         $id = $data['id'] ?? 0;
 
@@ -71,7 +97,7 @@ try {
             exit;
         }
 
-        // Nie można edytować własnego konta (bezpieczeństwo)
+        // Prevent modifying your own account
         if ($id == $user['id']) {
             http_response_code(400);
             echo json_encode(['error' => 'Cannot modify your own account']);
@@ -80,11 +106,11 @@ try {
 
         if (!empty($data['password'])) {
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-            $stmt = $db->prepare("UPDATE users SET first_name=?, last_name=?, password=?, role=? WHERE id=?");
-            $stmt->bind_param("ssssi", $data['first_name'], $data['last_name'], $hashedPassword, $data['role'], $id);
+            $stmt = $db->prepare("UPDATE users SET first_name=?, last_name=?, username=?, password=?, role=? WHERE id=?");
+            $stmt->bind_param("sssssi", $data['first_name'], $data['last_name'], $data['username'], $hashedPassword, $data['role'], $id);
         } else {
-            $stmt = $db->prepare("UPDATE users SET first_name=?, last_name=?, role=? WHERE id=?");
-            $stmt->bind_param("sssi", $data['first_name'], $data['last_name'], $data['role'], $id);
+            $stmt = $db->prepare("UPDATE users SET first_name=?, last_name=?, username=?, role=? WHERE id=?");
+            $stmt->bind_param("ssssi", $data['first_name'], $data['last_name'], $data['username'], $data['role'], $id);
         }
 
         if ($stmt->execute()) {
@@ -93,8 +119,11 @@ try {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to update user']);
         }
+        exit;
+    }
 
-    } elseif ($method === 'DELETE') {
+    // Handle DELETE requests (Delete a user)
+    if ($method === 'DELETE') {
         $data = json_decode(file_get_contents('php://input'), true);
         $id = $data['id'] ?? 0;
 
@@ -104,6 +133,7 @@ try {
             exit;
         }
 
+        // Prevent deleting your own account
         if ($id == $user['id']) {
             http_response_code(400);
             echo json_encode(['error' => 'Cannot delete your own account']);
@@ -119,10 +149,17 @@ try {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to delete user']);
         }
+        exit;
     }
+
+    // If method is not handled
+    http_response_code(405);
+    echo json_encode(['error' => 'Method not allowed']);
+    exit;
 
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error', 'details' => $e->getMessage()]);
+    error_log('users.php exception: ' . $e->getMessage());
+    exit;
 }
-?>

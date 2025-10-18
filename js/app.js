@@ -172,32 +172,6 @@ async function handleBookSubmit(e) {
         alert('Failed to save book: ' + error.message);
     }
 }
-async function startQRScanner() {
-    document.getElementById('qr-scanner').style.display = 'block';
-    const html5QrCode = new Html5Qrcode("qr-reader");
-
-    html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        async (decodedText) => {
-            console.log("Scanned:", decodedText);
-            await loadUserByCode(decodedText);
-            html5QrCode.stop();
-            document.getElementById('qr-scanner').style.display = 'none';
-        }
-    );
-}
-
-async function loadUserByCode(memberCode) {
-    const res = await fetch(`api/get_user_by_code.php?code=${memberCode}`);
-    const user = await res.json();
-    if (user && user.id) {
-        document.querySelector('#loan-user').value = user.id;
-        alert(`Znaleziono użytkownika: ${user.first_name} ${user.last_name}`);
-    } else {
-        alert("Nie znaleziono użytkownika!");
-    }
-}
 
 async function deleteBook(id) {
     if (!confirm('Are you sure you want to delete this book?')) return;
@@ -207,6 +181,43 @@ async function deleteBook(id) {
         loadBooks();
     } catch (error) {
         alert('Failed to delete book: ' + error.message);
+    }
+}
+
+// QR Scanner for Loans
+async function startBookQRScannerForLoan() {
+    const qrScanner = document.getElementById('book-qr-scanner-loan');
+    qrScanner.style.display = 'block';
+
+    const html5QrCode = new Html5Qrcode("book-qr-reader-loan");
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+            console.log("Scanned Book Code:", decodedText);
+            await loadBookForLoan(decodedText);
+            html5QrCode.stop();
+            qrScanner.style.display = 'none';
+        }
+    ).catch((err) => {
+        console.error("QR Scanner Error:", err);
+        alert("Failed to start QR scanner. Please try again.");
+    });
+}
+
+async function loadBookForLoan(bookCode) {
+    try {
+        const res = await fetch(`api/get_book_by_code.php?code=${bookCode}`);
+        const book = await res.json();
+        if (book && book.id) {
+            document.querySelector('#loan-book').value = book.id;
+            alert(`Book Found: ${book.title} by ${book.author}`);
+        } else {
+            alert("Book not found!");
+        }
+    } catch (error) {
+        console.error("Error loading book by code:", error);
+        alert("Failed to load book details. Please try again.");
     }
 }
 
@@ -320,7 +331,41 @@ async function loadUsers() {
         alert('Failed to load users: ' + error.message);
     }
 }
+document.getElementById('user-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
+    const user = {
+        first_name: document.getElementById('user-first-name').value,
+        last_name: document.getElementById('user-last-name').value,
+        username: document.getElementById('user-username').value,
+        password: document.getElementById('user-password').value,
+        role: document.getElementById('user-role').value
+    };
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/users.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(user)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to create user');
+        }
+
+        alert('User created successfully!');
+        closeModal('user-modal');
+        loadUsers(); // Refresh the users list
+    } catch (error) {
+        console.error('Failed to create user:', error);
+        alert('Failed to create user: ' + error.message);
+    }
+});
 function openUserModal() {
     document.getElementById('user-modal').style.display = 'block';
     document.getElementById('user-form').reset();

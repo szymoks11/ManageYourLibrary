@@ -45,9 +45,12 @@
                 </table>
             </div>
         </div>
+
+        <!-- QR Scanner for Member Card -->
         <div id="qr-scanner" style="display:none;">
             <h3>Scan Member Card</h3>
             <div id="qr-reader" style="width:300px"></div>
+            <button class="btn btn-secondary" onclick="stopQRScanner()">Cancel</button>
         </div>
         
         <!-- Loans Tab -->
@@ -55,7 +58,14 @@
             <div class="toolbar">
                 <button id="add-loan-btn" class="btn btn-primary">+ New Loan</button>
                 <button onclick="startQRScanner()" class="btn btn-secondary">Scan Card</button>
+                <button onclick="startBookQRScannerForLoan()" class="btn btn-secondary">Scan Book</button>
+            </div>
 
+            <!-- Hidden QR Scanner Section for Books -->
+            <div id="book-qr-scanner-loan" style="display:none;">
+                <h3>Scan Book QR Code</h3>
+                <div id="book-qr-reader-loan" style="width:300px"></div>
+                <button class="btn btn-secondary" onclick="stopBookQRScanner()">Cancel</button>
             </div>
             
             <div class="table-container">
@@ -167,6 +177,14 @@
             <h2>Add User</h2>
             <form id="user-form">
                 <div class="form-group">
+                    <label for="user-first-name">First Name*</label>
+                    <input type="text" id="user-first-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="user-last-name">Last Name*</label>
+                    <input type="text" id="user-last-name" required>
+                </div>
+                <div class="form-group">
                     <label for="user-username">Username*</label>
                     <input type="text" id="user-username" required>
                 </div>
@@ -193,6 +211,5 @@
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-
 </body>
 </html>

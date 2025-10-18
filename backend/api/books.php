@@ -18,41 +18,29 @@ ini_set('log_errors', 1);
 require_once '../config.php';
 
 try {
-    // Get DB connection (assumes getDB() returns mysqli)
+    // Get DB connection
     $db = getDB();
 
     // Read raw body once
     $rawBody = file_get_contents('php://input');
+    $jsonBody = $rawBody ? json_decode($rawBody, true) : null;
 
-    // Try to decode JSON body if present
-    $jsonBody = null;
-    if ($rawBody) {
-        $jsonBody = json_decode($rawBody, true);
-    }
-
-    // Allow method override using JSON body or form field _method
+    // Determine HTTP method
     $method = $_SERVER['REQUEST_METHOD'];
-    if (strtoupper($method) === 'POST') {
-        // check JSON body for _method
-        if (is_array($jsonBody) && !empty($jsonBody['_method'])) {
-            $method = strtoupper($jsonBody['_method']);
-        } elseif (!empty($_POST['_method'])) {
-            $method = strtoupper($_POST['_method']);
-        }
+    if ($method === 'POST' && is_array($jsonBody) && !empty($jsonBody['_method'])) {
+        $method = strtoupper($jsonBody['_method']);
     }
 
-    // Normalize input: prefer JSON body, then $_POST, then empty array
+    // Normalize input: prefer JSON body, then $_POST
     $input = is_array($jsonBody) ? $jsonBody : $_POST;
 
+    // Handle GET requests
     if ($method === 'GET') {
-        // Support optional search: ?search=...
         $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
         if ($search !== '') {
-            // Use prepared statement to search title, author, isbn
             $like = '%' . $db->real_escape_string($search) . '%';
-            $sql = "SELECT * FROM books WHERE title LIKE ? OR author LIKE ? OR isbn LIKE ? ORDER BY created_at DESC";
-            $stmt = $db->prepare($sql);
+            $stmt = $db->prepare("SELECT * FROM books WHERE title LIKE ? OR author LIKE ? OR isbn LIKE ? ORDER BY created_at DESC");
             if (!$stmt) throw new Exception('DB prepare failed: ' . $db->error);
             $stmt->bind_param('sss', $like, $like, $like);
             $stmt->execute();
@@ -71,9 +59,24 @@ try {
         exit;
     }
 
+    // Authenticate user for POST, PUT, DELETE
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        exit;
+    }
+
+    $token = $matches[1];
+    $user = validateToken($token); // Implement validateToken() to decode and verify JWT
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid token']);
+        exit;
+    }
+
+    // Handle POST requests (Create a new book)
     if ($method === 'POST') {
-        // Create new book (requires auth)
-        $user = authenticate();
         checkRole($user, ['admin', 'worker']);
 
         $title = trim($input['title'] ?? '');
@@ -88,9 +91,7 @@ try {
         }
 
         $stmt = $db->prepare("INSERT INTO books (title, author, isbn, quantity, available, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        if (!$stmt) {
-            throw new Exception('DB prepare failed: ' . $db->error);
-        }
+        if (!$stmt) throw new Exception('DB prepare failed: ' . $db->error);
         $stmt->bind_param("sssii", $title, $author, $isbn, $quantity, $quantity);
 
         if ($stmt->execute()) {
@@ -103,36 +104,30 @@ try {
         }
     }
 
+    // Handle PUT requests (Update a book)
     if ($method === 'PUT') {
-        // Update book (requires auth)
-        $user = authenticate();
         checkRole($user, ['admin', 'worker']);
-    
-        // ID may be provided in JSON body, or as query param / form param
+
         $id = isset($input['id']) ? (int)$input['id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
-    
         if (!$id) {
             http_response_code(400);
             echo json_encode(['error' => 'Book ID is required']);
             exit;
         }
-    
+
         $title = trim($input['title'] ?? '');
         $author = trim($input['author'] ?? '');
         $isbn = trim($input['isbn'] ?? '');
         $quantity = isset($input['quantity']) ? (int)$input['quantity'] : 1;
-        // NEW: read available (if empty fallback to quantity)
         $available = isset($input['available']) ? (int)$input['available'] : $quantity;
+
         if ($available < 0) $available = 0;
-        if ($available > $quantity) $available = $quantity; // ensure available <= total
-    
-        // Update both quantity and available
+        if ($available > $quantity) $available = $quantity;
+
         $stmt = $db->prepare("UPDATE books SET title=?, author=?, isbn=?, quantity=?, available=? WHERE id=?");
-        if (!$stmt) {
-            throw new Exception('DB prepare failed: ' . $db->error);
-        }
+        if (!$stmt) throw new Exception('DB prepare failed: ' . $db->error);
         $stmt->bind_param("sssiii", $title, $author, $isbn, $quantity, $available, $id);
-    
+
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Book updated successfully']);
             exit;
@@ -143,14 +138,11 @@ try {
         }
     }
 
+    // Handle DELETE requests (Delete a book)
     if ($method === 'DELETE') {
-        // Delete book (requires auth)
-        $user = authenticate();
         checkRole($user, ['admin']);
 
-        // ID may be provided in JSON body, or as query param
         $id = isset($input['id']) ? (int)$input['id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
-
         if (!$id) {
             http_response_code(400);
             echo json_encode(['error' => 'Book ID is required']);
@@ -158,9 +150,7 @@ try {
         }
 
         $stmt = $db->prepare("DELETE FROM books WHERE id=?");
-        if (!$stmt) {
-            throw new Exception('DB prepare failed: ' . $db->error);
-        }
+        if (!$stmt) throw new Exception('DB prepare failed: ' . $db->error);
         $stmt->bind_param("i", $id);
 
         if ($stmt->execute()) {
@@ -176,11 +166,9 @@ try {
     // If method not handled
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
-
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error']);
-    // Log full exception details for debugging (do not expose to client)
     error_log('books.php exception: ' . $e->getMessage() . ' | trace: ' . $e->getTraceAsString());
     exit;
 }
