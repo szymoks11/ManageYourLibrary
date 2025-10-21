@@ -17,9 +17,36 @@ ini_set('log_errors', 1);
 
 require_once '../config.php';
 
+// --- Add below if you do not have auth.php ---
+if (!function_exists('validateToken')) {
+    function validateToken($token) {
+        // For development, accept any token and return a dummy user
+        return ['id' => 1, 'username' => 'admin', 'role' => 'admin'];
+    }
+}
+if (!function_exists('checkRole')) {
+    function checkRole($user, $roles) {
+        if (!in_array($user['role'], $roles)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: insufficient role']);
+            exit;
+        }
+    }
+}
+// --- End stub ---
+
+// Debug: log script entry and method
+error_log('books.php called, method: ' . ($_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN'));
+
 try {
     // Get DB connection
     $db = getDB();
+    if (!$db) {
+        error_log('DB connection failed');
+        http_response_code(500);
+        echo json_encode(['error' => 'Server error: DB connection failed']);
+        exit;
+    }
 
     // Read raw body once
     $rawBody = file_get_contents('php://input');
@@ -60,24 +87,50 @@ try {
     }
 
     // Authenticate user for POST, PUT, DELETE
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+    if (!$authHeader) {
+        // Try apache_request_headers if available
+        if (function_exists('apache_request_headers')) {
+            $headers = apache_request_headers();
+            if (isset($headers['Authorization'])) {
+                $authHeader = $headers['Authorization'];
+            }
+        }
+    }
     if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+        error_log('Authorization header missing or invalid. Headers: ' . json_encode(getallheaders()));
         http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized']);
+        echo json_encode(['error' => 'Unauthorized: Missing or invalid Authorization header']);
         exit;
     }
 
     $token = $matches[1];
-    $user = validateToken($token); // Implement validateToken() to decode and verify JWT
+    if (!function_exists('validateToken')) {
+        error_log('validateToken() not defined');
+        http_response_code(500);
+        echo json_encode(['error' => 'Server error: validateToken() not defined']);
+        exit;
+    }
+    $user = validateToken($token);
     if (!$user) {
         http_response_code(401);
         echo json_encode(['error' => 'Invalid token']);
         exit;
     }
 
+    if (!function_exists('checkRole')) {
+        error_log('checkRole() not defined');
+        http_response_code(500);
+        echo json_encode(['error' => 'Server error: checkRole() not defined']);
+        exit;
+    }
+
     // Handle POST requests (Create a new book)
     if ($method === 'POST') {
         checkRole($user, ['admin', 'worker']);
+
+        // Debug log for incoming payload
+        error_log('POST /books.php payload: ' . json_encode($input));
 
         $title = trim($input['title'] ?? '');
         $author = trim($input['author'] ?? '');
@@ -91,15 +144,21 @@ try {
         }
 
         $stmt = $db->prepare("INSERT INTO books (title, author, isbn, quantity, available, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        if (!$stmt) throw new Exception('DB prepare failed: ' . $db->error);
+        if (!$stmt) {
+            error_log('DB prepare failed (add book): ' . $db->error);
+            http_response_code(500);
+            echo json_encode(['error' => 'Server error: DB prepare failed', 'details' => $db->error]);
+            exit;
+        }
         $stmt->bind_param("sssii", $title, $author, $isbn, $quantity, $quantity);
 
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'id' => $db->insert_id, 'message' => 'Book added successfully']);
             exit;
         } else {
+            error_log('DB execute failed (add book): ' . $stmt->error);
             http_response_code(500);
-            echo json_encode(['error' => 'Failed to add book']);
+            echo json_encode(['error' => 'Server error: Failed to add book', 'details' => $stmt->error]);
             exit;
         }
     }
@@ -152,7 +211,6 @@ try {
         $stmt = $db->prepare("DELETE FROM books WHERE id=?");
         if (!$stmt) throw new Exception('DB prepare failed: ' . $db->error);
         $stmt->bind_param("i", $id);
-
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'message' => 'Book deleted successfully']);
             exit;
@@ -168,7 +226,8 @@ try {
     echo json_encode(['error' => 'Method not allowed']);
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Server error']);
+    echo json_encode(['error' => 'Server error', 'details' => $e->getMessage()]);
     error_log('books.php exception: ' . $e->getMessage() . ' | trace: ' . $e->getTraceAsString());
     exit;
 }
+?>

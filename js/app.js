@@ -4,12 +4,14 @@ let currentUser = null;
 function checkAuth() {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
-    
+    // Debug log for mobile issues
+    console.log('Auth token:', token);
+    console.log('Auth user:', user);
     if (!token || !user) {
+        alert('Missing token or user info. Please login again.');
         window.location.href = 'index.html';
         return null;
     }
-    
     return JSON.parse(user);
 }
 
@@ -46,49 +48,53 @@ function setupEventListeners() {
         localStorage.clear();
         window.location.href = 'index.html';
     });
-    
+
     // Tabs
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
+
             tab.classList.add('active');
             document.getElementById(`${tab.dataset.tab}-tab-content`).classList.add('active');
-            
+
             if (tab.dataset.tab === 'books') loadBooks();
             if (tab.dataset.tab === 'loans') loadLoans();
             if (tab.dataset.tab === 'users') loadUsers();
         });
     });
-    
+
     // Search
     let searchTimeout;
     document.getElementById('search-books').addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => loadBooks(e.target.value), 300);
     });
-    
+
     // Modals
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', () => {
             btn.closest('.modal').style.display = 'none';
         });
     });
-    
+
     window.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal')) {
             e.target.style.display = 'none';
         }
     });
-    
+
     // Forms
     document.getElementById('add-book-btn')?.addEventListener('click', () => openBookModal());
     document.getElementById('book-form').addEventListener('submit', handleBookSubmit);
     document.getElementById('add-loan-btn')?.addEventListener('click', () => openLoanModal());
     document.getElementById('loan-form').addEventListener('submit', handleLoanSubmit);
     document.getElementById('add-user-btn')?.addEventListener('click', () => openUserModal());
-    document.getElementById('user-form').addEventListener('submit', handleUserSubmit);
+
+    // Remove existing event listeners before adding a new one
+    const userForm = document.getElementById('user-form');
+    userForm.removeEventListener('submit', handleUserSubmit);
+    userForm.addEventListener('submit', handleUserSubmit);
 }
 
 // Books
@@ -96,7 +102,6 @@ async function loadBooks(search = '') {
     try {
         const books = await API.getBooks(search);
         const tbody = document.querySelector('#books-table tbody');
-        
         tbody.innerHTML = books.map(book => `
             <tr>
                 <td>${book.title}</td>
@@ -113,7 +118,20 @@ async function loadBooks(search = '') {
             </tr>
         `).join('');
     } catch (error) {
-        alert('Failed to load books: ' + error.message);
+        console.error('loadBooks error:', error); // Debug log
+        // Show error in UI for mobile users
+        const tbody = document.querySelector('#books-table tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="6">Error: ${error.message}</td></tr>`;
+        }
+        // If unauthorized, force logout
+        if (error.message.includes('Unauthorized') || error.message.includes('Forbidden')) {
+            alert('Session expired or unauthorized. Please login again.');
+            localStorage.clear();
+            window.location.href = 'index.html';
+        } else {
+            alert('Failed to load books: ' + error.message);
+        }
     }
 }
 
@@ -201,7 +219,7 @@ async function startBookQRScannerForLoan() {
         }
     ).catch((err) => {
         console.error("QR Scanner Error:", err);
-        alert("Failed to start QR scanner. Please try again.");
+        alert("Failed to start QR scanner. Please check camera permissions and try again.");
     });
 }
 
@@ -373,18 +391,38 @@ function openUserModal() {
 
 async function handleUserSubmit(e) {
     e.preventDefault();
-    
+
     const user = {
+        first_name: document.getElementById('user-first-name').value,
+        last_name: document.getElementById('user-last-name').value,
         username: document.getElementById('user-username').value,
         password: document.getElementById('user-password').value,
         role: document.getElementById('user-role').value
     };
-    
+
     try {
-        await API.createUser(user);
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/users.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(user)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to create user');
+        }
+
+        const data = await response.json();
+        console.log('User created successfully:', data); // Debugging
+        alert('User created successfully!');
         closeModal('user-modal');
-        loadUsers();
+        loadUsers(); // Refresh the users list
     } catch (error) {
+        console.error('Failed to create user:', error);
         alert('Failed to create user: ' + error.message);
     }
 }
@@ -404,3 +442,249 @@ async function deleteUser(id) {
 function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
 }
+
+const API = {
+    async createBook(book) {
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/books.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(book)
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to save book');
+        }
+        return data;
+    },
+    async updateBook(bookId, book) {
+        const token = localStorage.getItem('token');
+        const payload = { ...book, id: bookId, _method: 'PUT' };
+        const response = await fetch('backend/api/books.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to update book');
+        }
+        return data;
+    },
+    async deleteBook(bookId) {
+        const token = localStorage.getItem('token');
+        const payload = { id: bookId, _method: 'DELETE' };
+        const response = await fetch('backend/api/books.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to delete book');
+        }
+        return data;
+    },
+    async getBooks(search = '') {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`backend/api/books.php?search=${encodeURIComponent(search)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : [];
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to load books');
+        }
+        return data;
+    },
+    async getLoans() {
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/loans.php', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : [];
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to load loans');
+        }
+        return data;
+    },
+    async getUsers() {
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/users.php', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : [];
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to load users');
+        }
+        return data;
+    },
+    async createLoan(loan) {
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/loans.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(loan)
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to create loan');
+        }
+        return data;
+    },
+    async returnLoan(loanId) {
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/loans.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id: loanId, _method: 'PUT' })
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to return loan');
+        }
+        return data;
+    },
+    async deleteUser(userId) {
+        const token = localStorage.getItem('token');
+        const response = await fetch('backend/api/users.php', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ id: userId })
+        });
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            throw new Error('Invalid server response');
+        }
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to delete user');
+        }
+        return data;
+    }
+};
+
+async function startQRScanner() {
+    const qrScanner = document.getElementById('qr-scanner');
+    const qrReader = document.getElementById('qr-reader');
+    qrScanner.classList.add('show');
+    // Clear previous QR reader content
+    if (qrReader) qrReader.innerHTML = '';
+
+    // Prevent multiple instances
+    if (window._memberQrCodeScanner) {
+        await window._memberQrCodeScanner.stop().catch(() => {});
+        window._memberQrCodeScanner = null;
+    }
+
+    const html5QrCode = new Html5Qrcode("qr-reader");
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+            console.log("Scanned Member Card:", decodedText);
+            alert(`Member Card Scanned: ${decodedText}`);
+            await html5QrCode.stop();
+            qrScanner.classList.remove('show');
+            window._memberQrCodeScanner = null;
+        }
+    ).catch((err) => {
+        console.error("QR Scanner Error:", err);
+        alert("Failed to start QR scanner. Please check camera permissions and try again.");
+        qrScanner.classList.remove('show');
+    });
+
+    window._memberQrCodeScanner = html5QrCode;
+}
+
+function stopQRScanner() {
+    const qrScanner = document.getElementById('qr-scanner');
+    qrScanner.classList.remove('show');
+    if (window._memberQrCodeScanner) {
+        window._memberQrCodeScanner.stop().catch(() => {});
+        window._memberQrCodeScanner = null;
+    }
+}
+
+// At the end of the file, export the QR scanner functions to window
+window.startQRScanner = startQRScanner;
+window.stopQRScanner = stopQRScanner;
