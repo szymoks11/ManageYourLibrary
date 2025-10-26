@@ -2,7 +2,6 @@
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 requireRole(['admin']);
-
 // Date range filter
 $start_date = $_GET['start_date'] ?? date('Y-m-01');
 $end_date = $_GET['end_date'] ?? date('Y-m-t');
@@ -97,11 +96,7 @@ $worker_performance = fetchAll("
                             <i class="bi bi-filter"></i> Filter
                         </button>
                     </div>
-                    <div class="col-md-2">
-                        <button type="button" class="btn btn-success w-100" onclick="window.print()">
-                            <i class="bi bi-printer"></i> Print
-                        </button>
-                    </div>
+                    
                 </form>
             </div>
         </div>
@@ -279,5 +274,6 @@ $worker_performance = fetchAll("
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/script.js"></script>
 </body>
 </html>

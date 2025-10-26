@@ -319,5 +319,6 @@ $active_loans = $db->query($active_loans_query)->fetchAll(PDO::FETCH_ASSOC);
             });
         });
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 </html>

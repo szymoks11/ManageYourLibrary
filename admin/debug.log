@@ -1,0 +1,51 @@
+Array
+(
+    [book_id] => 3
+    [isbn] => 9780451524935
+    [title] => 1984
+    [author] => George Orwell
+    [publisher] => Signet Classic
+    [publication_year] => 1949
+    [genre_id] => 3
+    [total_copies] => 5
+    [shelf_location] => B-201
+    [description] => Dystopian social science fiction
+)
+Array
+(
+    [book_id] => 3
+    [isbn] => 9780451524935
+    [title] => 1984
+    [author] => George Orwell
+    [publisher] => Signet Classic
+    [publication_year] => 1949
+    [genre_id] => 3
+    [total_copies] => 5
+    [shelf_location] => B-201
+    [description] => Dystopian social science fiction
+)
+Array
+(
+    [book_id] => 3
+    [isbn] => 9780451524935
+    [title] => 1984
+    [author] => George Orwell
+    [publisher] => Signet Classic
+    [publication_year] => 1949
+    [genre_id] => 3
+    [total_copies] => 5
+    [shelf_location] => B-201
+    [description] => Dystopian social science fiction
+)
+Array
+(
+    [book_id] => 3
+)
+Array
+(
+    [book_id] => 3
+)
+Array
+(
+    [book_id] => 3
+)

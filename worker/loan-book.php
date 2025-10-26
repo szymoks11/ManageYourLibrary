@@ -239,5 +239,6 @@ $clients = $clients_stmt->fetchAll(PDO::FETCH_ASSOC);
             });
         });
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 </html>

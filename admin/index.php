@@ -359,5 +359,6 @@ $genre_stats = fetchAll("
             }
         });
     </script>
+    <script src="../assets/js/script.js"></script>
 </body>
 </html>

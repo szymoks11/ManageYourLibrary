@@ -1,5 +1,6 @@
 <?php
 require_once '../includes/auth.php';
+require_once '../includes/functions.php';
 require_once '../config/database.php';
 requireRole(['admin']);
 
@@ -173,75 +174,75 @@ $genres = fetchAll("SELECT * FROM genres ORDER BY genre_name");
     </div>
     
     <!-- Add Book Modal -->
-    <div class="modal fade" id="addBookModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <form method="POST">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add New Book</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">ISBN *</label>
-                                <input type="text" class="form-control" name="isbn" maxlength="13" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Title *</label>
-                                <input type="text" class="form-control" name="title" required>
-                            </div>
+<div class="modal fade" id="addBookModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="manage-books.php" id="addBookForm">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Add New Book</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">ISBN *</label>
+                            <input type="text" class="form-control" name="isbn" id="add_isbn" maxlength="13" required>
                         </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Author *</label>
-                                <input type="text" class="form-control" name="author" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Publisher</label>
-                                <input type="text" class="form-control" name="publisher">
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Publication Year</label>
-                                <input type="number" class="form-control" name="publication_year" min="1000" max="<?= date('Y') ?>">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Genre</label>
-                                <select class="form-select" name="genre_id">
-                                    <option value="">Select Genre</option>
-                                    <?php foreach ($genres as $genre): ?>
-                                        <option value="<?= $genre['genre_id'] ?>"><?= htmlspecialchars($genre['genre_name']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label">Total Copies *</label>
-                                <input type="number" class="form-control" name="total_copies" min="1" value="1" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Shelf Location</label>
-                                <input type="text" class="form-control" name="shelf_location" placeholder="e.g., A-101">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Description</label>
-                            <textarea class="form-control" name="description" rows="3"></textarea>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Title *</label>
+                            <input type="text" class="form-control" name="title" id="add_title" required>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" name="add_book" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Add Book
-                        </button>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Author *</label>
+                            <input type="text" class="form-control" name="author" id="add_author" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Publisher</label>
+                            <input type="text" class="form-control" name="publisher" id="add_publisher">
+                        </div>
                     </div>
-                </form>
-            </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Publication Year</label>
+                            <input type="number" class="form-control" name="publication_year" id="add_year" min="1000" max="<?= date('Y') ?>">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Genre</label>
+                            <select class="form-select" name="genre_id" id="add_genre_id">
+                                <option value="">Select Genre</option>
+                                <?php foreach ($genres as $genre): ?>
+                                    <option value="<?= $genre['genre_id'] ?>"><?= htmlspecialchars($genre['genre_name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Total Copies *</label>
+                            <input type="number" class="form-control" name="total_copies" id="add_copies" min="1" value="1" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Shelf Location</label>
+                            <input type="text" class="form-control" name="shelf_location" id="add_location" placeholder="e.g., A-101">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" id="add_description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="add_book" value="1" class="btn btn-primary" id="submitAddBook">
+                        <i class="bi bi-save"></i> Add Book
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
     
     <!-- Edit Book Modal -->
     <div class="modal fade" id="editBookModal" tabindex="-1">
@@ -348,34 +349,54 @@ $genres = fetchAll("SELECT * FROM genres ORDER BY genre_name");
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
     <script>
-        $(document).ready(function() {
-            $('#booksTable').DataTable({
-                pageLength: 25,
-                order: [[2, 'asc']]
-            });
+    $(document).ready(function() {
+        // Initialize DataTable
+        $('#booksTable').DataTable({
+            pageLength: 25,
+            order: [[2, 'asc']]
         });
         
-        function editBook(book) {
-            $('#edit_book_id').val(book.book_id);
-            $('#edit_isbn').val(book.isbn);
-            $('#edit_title').val(book.title);
-            $('#edit_author').val(book.author);
-            $('#edit_publisher').val(book.publisher);
-            $('#edit_year').val(book.publication_year);
-            $('#edit_genre').val(book.genre_id);
-            $('#edit_copies').val(book.total_copies);
-            $('#edit_location').val(book.shelf_location);
-            $('#edit_description').val(book.description);
-            
-            new bootstrap.Modal(document.getElementById('editBookModal')).show();
-        }
+        // Remove any previous event handlers that might block submission
+        $('#addBookForm').off('submit');
         
-        function deleteBook(id, title) {
-            $('#delete_book_id').val(id);
-            $('#delete_book_title').text(title);
-            new bootstrap.Modal(document.getElementById('deleteBookModal')).show();
-        }
-    </script>
+        // Simple form validation without preventing submission
+        $('#submitAddBook').on('click', function(e) {
+            var isbn = $('#add_isbn').val().trim();
+            var title = $('#add_title').val().trim();
+            var author = $('#add_author').val().trim();
+            
+            if (!isbn || !title || !author) {
+                e.preventDefault();
+                alert('Please fill in all required fields (ISBN, Title, and Author)');
+                return false;
+            }
+            
+            // If validation passes, the form will submit normally
+        });
+    });
+    
+    function editBook(book) {
+        $('#edit_book_id').val(book.book_id);
+        $('#edit_isbn').val(book.isbn);
+        $('#edit_title').val(book.title);
+        $('#edit_author').val(book.author);
+        $('#edit_publisher').val(book.publisher);
+        $('#edit_year').val(book.publication_year);
+        $('#edit_genre').val(book.genre_id);
+        $('#edit_copies').val(book.total_copies);
+        $('#edit_location').val(book.shelf_location);
+        $('#edit_description').val(book.description);
+        
+        new bootstrap.Modal(document.getElementById('editBookModal')).show();
+    }
+    
+    function deleteBook(id, title) {
+        $('#delete_book_id').val(id);
+        $('#delete_book_title').text(title);
+        new bootstrap.Modal(document.getElementById('deleteBookModal')).show();
+    }
+</script>
 </body>
 </html>

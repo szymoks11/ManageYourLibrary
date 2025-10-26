@@ -1,5 +1,6 @@
 <?php
 require_once '../includes/auth.php';
+require_once '../includes/functions.php';
 require_once '../config/database.php';
 requireRole(['admin']);
 
@@ -346,5 +347,6 @@ $stats = fetchOne("
             new bootstrap.Modal(document.getElementById('editUserModal')).show();
         }
     </script>
+    
 </body>
 </html>
