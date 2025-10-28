@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 function isLoggedIn() {
     return isset($_SESSION['user_id']);
@@ -14,6 +16,9 @@ function requireLogin() {
 
 function requireRole($roles) {
     requireLogin();
+    if (!is_array($roles)) {
+        $roles = [$roles];
+    }
     if (!in_array($_SESSION['role'], $roles)) {
         header("Location: ../index.php");
         exit();
